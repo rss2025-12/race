@@ -24,6 +24,7 @@ setup(
     entry_points={
         'console_scripts': [
             'race = final.race:main',
+            'light_detector = final.light_detector:main',
         ],
     },
 )
