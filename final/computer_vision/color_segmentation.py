@@ -41,15 +41,15 @@ def cd_color_segmentation(img, template, display=False):
 	"""
 	# HSV Parameters #
 	hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-	hue_low, hue_high = 5, 170
+	hue_low, hue_high = 2, 170
 	saturation_low, saturation_high = 150, 255
-	value_low, value_high = 180, 255
+	value_low, value_high = 70, 255
 
 	# Filtering Image #
 	bottom_border = np.array([0, saturation_low, value_low])
 	lower_red = np.array([hue_low, saturation_high, value_high])
 	upper_red = np.array([hue_high, saturation_low, value_low])
-	top_border = np.array([255, saturation_high, value_high])
+	top_border = np.array([255, saturation_high, value_high]) 
 
 	mask1 = cv2.inRange(hsv, bottom_border, lower_red)
 	mask2 = cv2.inRange(hsv, upper_red, top_border)

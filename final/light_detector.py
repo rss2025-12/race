@@ -7,9 +7,9 @@ import numpy as np
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
+from std_msgs.msg import Bool
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Point #geometry_msgs not in CMake file
-from vs_msgs.msg import ConeLocationPixel
 
 # import your color segmentation algorithm; call this function in ros_image_callback!
 from computer_vision.color_segmentation import cd_color_segmentation, detect_apriltags
@@ -24,8 +24,10 @@ class LightDetector(Node):
     def __init__(self):
         super().__init__("light_detector")
         # Subscribe to ZED camera RGB frames
-        self.cone_pub = self.create_publisher(ConeLocationPixel, "/redlight", 10)
-        self.debug_pub = self.create_publisher(Image, "/debug_img", 10)
+        self.debug = True
+        self.lights_pub = self.create_publisher(Bool, "/redlight", 10)
+        if self.debug:
+            self.debug_pub = self.create_publisher(Image, "/debug_img", 10)
         self.image_sub = self.create_subscription(Image, "/zed/zed_node/rgb/image_rect_color", self.image_callback, 5)
         self.bridge = CvBridge() # Converts between ROS images and OpenCV Images
 
@@ -52,7 +54,6 @@ class LightDetector(Node):
         """
 
         image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
-        bottom_pixel = ConeLocationPixel()
         bounding_box = cd_color_segmentation(image, "placeholder", False)
 
         ### AprilTag Detection (Remeber to comment out) ###
@@ -62,13 +63,18 @@ class LightDetector(Node):
         length = x2-x1
         width = y2-y1
         area = length*width
-        self.get_logger().info(f"Light detected with area {area} px^2, length/width {length}, {width} px")
-        bottom_pixel.u = float(x1 + (x2 - x1) / 2)
-        bottom_pixel.v = float(y2)
-        self.cone_pub.publish(bottom_pixel)
+        is_light = area>100
 
-        debug_msg = self.bridge.cv2_to_imgmsg(image, "bgr8")
-        self.debug_pub.publish(debug_msg)
+        light_on_and_close = Bool()
+        light_on_and_close.data = is_light
+        self.lights_pub.publish(light_on_and_close)
+
+        if self.debug:
+            self.get_logger().info(f"Light detected with area {area} px^2, length/width {length}, {width} px")
+            if(not is_light):
+                cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+            debug_msg = self.bridge.cv2_to_imgmsg(image, "bgr8")
+            self.debug_pub.publish(debug_msg)
 
     def april_tag_distances(self, positions):
         for tag in positions:
@@ -81,8 +87,8 @@ class LightDetector(Node):
             tag_position['total_X'] += X
             tag_position['total_Y'] += Y
             tag_position['count'] += 1
-        
-        if self.tag_positions[0]['count'] == 100:
+
+        if self.tag_positions[0]['count'] == 200:
             for tag_id, data in self.tag_positions.items():
                 count = data['count']
                 if count > 0:
