@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 import os, glob
 
-package_name = 'final'
+package_name = 'race'
 
 setup(
     name=package_name,
@@ -11,9 +11,8 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('lib/'+package_name+"/cv", glob.glob(os.path.join('final/cv', '*.py'))),
-        ('share/final/launch', glob.glob(os.path.join('launch', '*launch.xml'))),
-        ('lib/'+package_name+"/computer_vision", glob.glob(os.path.join('final/computer_vision', '*.py'))),
+        ('lib/'+package_name+"/cv", glob.glob(os.path.join('race/cv', '*.py'))),
+        ('share/race/launch', glob.glob(os.path.join('launch', '*launch.xml'))),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -24,8 +23,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'race = final.race:main',
-            'light_detector = final.light_detector:main',
+            'race = race.race:main',
         ],
     },
 )
