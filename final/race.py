@@ -29,18 +29,20 @@ class Race(Node):
 
     def image_callback(self, image_msg):
         img = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
+        offset = None
 
         # self.race_cv.show_video(img)
         # self.race_cv.record_video(img)
         offset, steering_angle = self.race_cv.lane_following(img)
 
-        drive_msg = AckermannDriveStamped()
-        drive_msg.header.stamp = self.get_clock().now().to_msg()
-        drive_msg.header.frame_id = 'base_link'
-        drive_msg.drive.speed = self.speed
-        drive_msg.drive.steering_angle = steering_angle
+        if offset is not None:
+            drive_msg = AckermannDriveStamped()
+            drive_msg.header.stamp = self.get_clock().now().to_msg()
+            drive_msg.header.frame_id = 'base_link'
+            drive_msg.drive.speed = self.drive_speed
+            drive_msg.drive.steering_angle = steering_angle
 
-        self.drive_pub.publish(drive_msg)
+            self.drive_pub.publish(drive_msg)
 
 
 def main(args=None):

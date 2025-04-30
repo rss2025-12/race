@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 class RaceCV():
-    def init(self):
+    def __init__(self):
         self.out = None
         self.prev_lx = []
         self.prev_rx = []
@@ -160,19 +160,23 @@ class RaceCV():
             self.prev_rx = rx
         min_length = min(len(lx), len(rx))
 
+        if min_length == 0:
+            print("No lanes detected")
+            return None, None
+
         # Fit second order polynomial
         left_points = [(lx[i], y + i * win_height) for i in range(min_length)]
         right_points = [(rx[i], y + i * win_height) for i in range(min_length)]
         try:
             left_fit = np.polyfit([p[1] for p in left_points], [p[0] for p in left_points], 2)
-            prev_left_fit = left_fit
+            self.prev_left_fit = left_fit
         except (np.linalg.LinAlgError, ValueError):
-            left_fit = prev_left_fit
+            left_fit = self.prev_left_fit
         try:
             right_fit = np.polyfit([p[1] for p in right_points], [p[0] for p in right_points], 2)
-            prev_right_fit = right_fit
+            self.prev_right_fit = right_fit
         except (np.linalg.LinAlgError, ValueError):
-            right_fit = prev_right_fit
+            right_fit = self.prev_right_fit
 
         # Curvature
         y_eval = frame_height
@@ -185,13 +189,15 @@ class RaceCV():
         curvature = left_curvature + right_curvature / 2
 
         # Offset
-        car_offset = 30 # Car offset
+        car_offset = 20 # Car offset
         lane_center = (left_base + right_base) / 2
         car_position = frame_width // 2 + car_offset
         lane_offset = (car_position - lane_center) * lane_width_meters / frame_width
 
         # Steering angle
+        steering_constant = 1
         steering_angle = np.arctan(lane_offset / curvature)
+        steering_angle *= steering_constant
 
         # Steering line
         line_length = 100
@@ -227,6 +233,10 @@ class RaceCV():
         # cv2.imshow("Sliding Windows", window_mask)
         # cv2.imshow("Lane Highlight", overlay)
         # cv2.imshow("Original Lane", overlay_original)
-        # cv2.imshow("Result", result)
+        cv2.imshow("Result", result)
+
+        ### Continuous streaming ###
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            cv2.destroyAllWindows()
 
         return lane_offset, steering_angle
