@@ -34,7 +34,7 @@ class RaceCV():
 
         if self.out is None:
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            self.out = cv2.VideoWriter('src/final/vids/run1.mp4', fourcc, fps, frame_size)
+            self.out = cv2.VideoWriter('src/race/vids/homography.mp4', fourcc, fps, frame_size)
 
         self.out.write(img)
 
@@ -88,39 +88,49 @@ class RaceCV():
 
         for contour in contours:
             area = cv2.contourArea(contour)
-            x_rect, y_rect, w, h = cv2.boundingRect(contour)
-            aspect_ratio = float(w) / h if h > 0 else 0
+            # x_rect, y_rect, w, h = cv2.boundingRect(contour)
+            # aspect_ratio = float(w) / h if h > 0 else 0
 
             if area < 300: # Filter by size
                 continue
 
             cv2.drawContours(filtered_mask, [contour], -1, 255, -1)
-
         mask = filtered_mask
 
-        horizontal_kernel = np.ones((1, 8), np.uint8)
-        vertical_kernel = np.ones((5, 1), np.uint8)
+        vertical_kernel = np.ones((1, 5), np.uint8)
+        horizontal_kernel = np.ones((5, 1), np.uint8)
 
-        mask = cv2.dilate(mask, vertical_kernel, iterations=2)
-        mask = cv2.erode(mask, horizontal_kernel, iterations=1)
+        mask = cv2.dilate(mask, vertical_kernel, iterations=3)
+        mask = cv2.erode(mask, horizontal_kernel, iterations=8)
+
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        filtered_mask = np.zeros_like(mask)
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area < 800: # Filter by size
+                continue
+            cv2.drawContours(filtered_mask, [contour], -1, 255, -1)
+        mask = filtered_mask
 
         ### Histogram ###
         hist_offset = 110
         histogram = np.sum(mask[mask.shape[0] // 2:, :], axis=0)
         midpoint = int(histogram.shape[0] / 2)
-        left_base = np.argmax(histogram[:midpoint - hist_offset])
-        right_base = np.argmax(histogram[midpoint + hist_offset:]) + midpoint + hist_offset
+        left_bottom = np.argmax(histogram[:midpoint - hist_offset])
+        right_bottom = np.argmax(histogram[midpoint + hist_offset:]) + midpoint + hist_offset
+        left_base = left_bottom
+        right_base = right_bottom
 
         ### Sliding window ###
         win_width = 50 # Half of width
         win_height = 40
         y = 360
         starting_y = y
-        lane_width_meters = 0.4
+        lane_width_meters = 0.9
         lx = []
         rx = []
 
-        window_mask = mask.copy()
+        # window_mask = mask.copy()
         while y > 0:
             # Left
             img = mask[max(0, y - win_height):y, max(0, left_base - win_width):left_base + win_width]
@@ -144,8 +154,8 @@ class RaceCV():
                     rx.append(right_base - win_width + cx)
                     right_base = right_base - win_width + cx
 
-            cv2.rectangle(window_mask, (left_base - win_width, y), (left_base + win_width, y - win_height), (255, 255, 255), 2)
-            cv2.rectangle(window_mask, (right_base - win_width, y), (right_base + win_width, y - win_height), (255, 255, 255), 2)
+            # cv2.rectangle(window_mask, (left_base - win_width, y), (left_base + win_width, y - win_height), (255, 255, 255), 2)
+            # cv2.rectangle(window_mask, (right_base - win_width, y), (right_base + win_width, y - win_height), (255, 255, 255), 2)
 
             y -= win_height
 
@@ -165,66 +175,72 @@ class RaceCV():
             return None, None
 
         # Fit second order polynomial
-        left_points = [(lx[i], y + i * win_height) for i in range(min_length)]
-        right_points = [(rx[i], y + i * win_height) for i in range(min_length)]
-        try:
-            left_fit = np.polyfit([p[1] for p in left_points], [p[0] for p in left_points], 2)
-            self.prev_left_fit = left_fit
-        except (np.linalg.LinAlgError, ValueError):
-            left_fit = self.prev_left_fit
-        try:
-            right_fit = np.polyfit([p[1] for p in right_points], [p[0] for p in right_points], 2)
-            self.prev_right_fit = right_fit
-        except (np.linalg.LinAlgError, ValueError):
-            right_fit = self.prev_right_fit
+        # left_points = [(lx[i], y + i * win_height) for i in range(min_length)]
+        # right_points = [(rx[i], y + i * win_height) for i in range(min_length)]
+        # try:
+        #     left_fit = np.polyfit([p[1] for p in left_points], [p[0] for p in left_points], 2)
+        #     self.prev_left_fit = left_fit
+        # except (np.linalg.LinAlgError, ValueError):
+        #     left_fit = self.prev_left_fit
+        # try:
+        #     right_fit = np.polyfit([p[1] for p in right_points], [p[0] for p in right_points], 2)
+        #     self.prev_right_fit = right_fit
+        # except (np.linalg.LinAlgError, ValueError):
+        #     right_fit = self.prev_right_fit
 
         # Curvature
-        y_eval = frame_height
-        epsilon = 1e-6  # Small number to prevent divide-by-zero
-        left_A = left_fit[0] if np.abs(left_fit[0]) > epsilon else epsilon
-        right_A = right_fit[0] if np.abs(right_fit[0]) > epsilon else epsilon
+        # y_eval = frame_height
+        # epsilon = 1e-6
+        # left_A = left_fit[0] if np.abs(left_fit[0]) > epsilon else epsilon
+        # right_A = right_fit[0] if np.abs(right_fit[0]) > epsilon else epsilon
 
-        left_curvature = ((1 + (2 * left_fit[0] * y_eval + left_fit[1])**2)**1.5) / np.abs(2 * left_A)
-        right_curvature = ((1 + (2 * right_fit[0] * y_eval + right_fit[1])**2)**1.5) / np.abs(2 * right_A)
-        curvature = left_curvature + right_curvature / 2
+        # left_curvature = ((1 + (2 * left_fit[0] * y_eval + left_fit[1])**2)**1.5) / np.abs(2 * left_A)
+        # right_curvature = ((1 + (2 * right_fit[0] * y_eval + right_fit[1])**2)**1.5) / np.abs(2 * right_A)
+        # curvature = left_curvature + right_curvature / 2
 
         # Offset
-        car_offset = 20 # Car offset
-        lane_center = (left_base + right_base) / 2
-        car_position = frame_width // 2 + car_offset
-        lane_offset = (car_position - lane_center) * lane_width_meters / frame_width
+        lane_center = (left_bottom + right_bottom) / 2
+        cv2.circle(mask, (int(lane_center), frame_height), 5, 255, -1)
+
+        # cv2.circle(transformed_frame, (0, frame_height), 5, (0, 0, 255), -1)
+        # cv2.circle(transformed_frame, (640, frame_height), 5, (0, 0, 255), -1)
+
+        # 1.48 m per 640 pixels
+
+        car_position = frame_width // 2
+        lane_offset = (car_position - lane_center) * 1.48 / frame_width
 
         # Steering angle
-        steering_constant = 1
-        steering_angle = np.arctan(lane_offset / curvature)
-        steering_angle *= steering_constant
+        # steering_constant = 1
+        # steering_angle = np.arctan(lane_offset / 0.9)  # / curvature
+        # steering_angle *= steering_constant
 
         # Steering line
-        line_length = 100
-        end_x = int(frame_width // 2 + line_length * np.sin(steering_angle))
-        end_y = int(frame_height - line_length * np.cos(steering_angle))
+        # line_length = 100
+        # end_x = int(frame_width // 2 + line_length * np.sin(steering_angle))
+        # end_y = int(frame_height - line_length * np.cos(steering_angle))
 
         ### Overlay ###
-        top_left = (lx[0], starting_y)
-        top_right = (rx[0], starting_y)
-        bottom_left = (lx[min_length - 1], 0)
-        bottom_right = (rx[min_length - 1], 0)
+        # top_left = (lx[0], starting_y)
+        # top_right = (rx[0], starting_y)
+        # bottom_left = (lx[min_length - 1], 0)
+        # bottom_right = (rx[min_length - 1], 0)
 
-        quad_points = np.array([[top_left, top_right, bottom_right, bottom_left]], dtype=np.int32)
-        quad_points = quad_points.reshape((-1, 1, 2))
-        overlay = transformed_frame.copy()
-        cv2.fillPoly(overlay, [quad_points], (0, 255, 0))
-        alpha = 0.5
-        cv2.addWeighted(overlay, alpha, transformed_frame, 1 - alpha, 0, transformed_frame)
-        inv_matrix = cv2.getPerspectiveTransform(pts2, pts1)
-        overlay_original = cv2.warpPerspective(transformed_frame, inv_matrix, (640, 360))
-        result = cv2.addWeighted(frame, 1, overlay_original, 0.5, 0)
+        # quad_points = np.array([[top_left, top_right, bottom_right, bottom_left]], dtype=np.int32)
+        # quad_points = quad_points.reshape((-1, 1, 2))
+        # overlay = transformed_frame.copy()
+        # cv2.fillPoly(overlay, [quad_points], (0, 255, 0))
+        # alpha = 0.5
+        # cv2.addWeighted(overlay, alpha, transformed_frame, 1 - alpha, 0, transformed_frame)
+        # inv_matrix = cv2.getPerspectiveTransform(pts2, pts1)
+        # overlay_original = cv2.warpPerspective(transformed_frame, inv_matrix, (640, 360))
+        # result = cv2.addWeighted(frame, 1, overlay_original, 0.5, 0)
 
         ### Steering Messages ###
-        cv2.line(result, (frame_width //2, frame_height), (end_x, end_y), (255, 0, 0), 2)
-        cv2.putText(result, f'Curvature: {curvature:.2f} m', (30, 30), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
-        cv2.putText(result, f'Offset: {lane_offset:.2f} m', (30, 70), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
-        cv2.putText(result, f'Angle: {steering_angle:.2f} m', (30, 110), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+        # cv2.line(result, (frame_width //2, frame_height), (end_x, end_y), (255, 0, 0), 2)
+        # cv2.putText(result, f'Curvature: {curvature:.2f} m', (30, 30), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+        # cv2.putText(result, f'Offset: {lane_offset:.2f} m', (30, 70), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+        # cv2.putText(result, f'Angle: {steering_angle:.2f} m', (30, 110), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
 
         ### Visualization ###
         # cv2.imshow("Original", frame)
@@ -233,10 +249,10 @@ class RaceCV():
         # cv2.imshow("Sliding Windows", window_mask)
         # cv2.imshow("Lane Highlight", overlay)
         # cv2.imshow("Original Lane", overlay_original)
-        cv2.imshow("Result", result)
+        # cv2.imshow("Result", result)
 
         ### Continuous streaming ###
         if cv2.waitKey(1) & 0xFF == ord('q'):
             cv2.destroyAllWindows()
 
-        return lane_offset, steering_angle
+        return lane_offset, 0.65
