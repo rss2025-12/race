@@ -83,7 +83,7 @@ class Race(Node):
         angle_to_wp = np.arctan2(dy, dx)
 
         current_time = self.get_clock().now().nanoseconds / 1e9
-        angle_derivative = (angle_to_wp - self.prev_wp_angle)/(current_time-self.prev_time)
+        angle_derivative = (angle_to_wp - self.prev_wp_angle) / (current_time-self.prev_time)
 
         self.prev_time = current_time
         self.prev_wp_angle = angle_to_wp
