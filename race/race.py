@@ -33,7 +33,6 @@ class Race(Node):
 
         # self.race_cv.show_video(img)
         # self.race_cv.record_video(img)
-
         x_target, y_target  = self.race_cv.lane_following(img)
 
         if x_target is None:

@@ -139,7 +139,6 @@ class RaceCV():
         lx, rx = [], []
         left_bases, right_bases = [left_base], [right_base]
 
-        window_mask = mask.copy()
         while y > 0:
             y_top = max(0, y - win_height)
 
@@ -165,8 +164,8 @@ class RaceCV():
                     right_bases.append(right_base)
                     break
 
-            cv2.rectangle(window_mask, (left_base - win_width, y), (left_base + win_width, y - win_height), (255, 255, 255), 2)
-            cv2.rectangle(window_mask, (right_base - win_width, y), (right_base + win_width, y - win_height), (255, 255, 255), 2)
+            # cv2.rectangle(window_mask, (left_base - win_width, y), (left_base + win_width, y - win_height), (255, 255, 255), 2)
+            # cv2.rectangle(window_mask, (right_base - win_width, y), (right_base + win_width, y - win_height), (255, 255, 255), 2)
 
             y -= win_height
 
