@@ -9,6 +9,34 @@ class RaceCV():
         self.prev_left_fit = []
         self.prev_right_fit = []
 
+        PTS_IMAGE_PLANE = [[33, 277], [358, 235], [543, 240],
+                           [129, 203], [350, 210], [476, 213],
+                           [176, 181], [341, 187], [435, 189],
+                           [201, 175], [335, 177], [411, 177],
+                           [230, 170], [342, 173], [405, 174],
+                           [234, 155], [328, 158], [382, 158],
+                           [252, 151], [336, 156], [382, 156]]
+
+        PTS_GROUND_PLANE = [[24, 23.5], [24, 0], [24, -13.25],
+                            [36, 23.5], [36, 0], [36, -13.25],
+                            [48, 23.5], [48, 0], [48, -13.25],
+                            [60, 23.5], [60, 0], [60, -13.25],
+                            [72, 23.5], [72, 0], [72, -13.25],
+                            [84, 23.5], [84, 0], [84, -13.25],
+                            [96, 23.5], [96, 0], [96, -13.25]]
+
+        METERS_PER_INCH = 0.0254
+
+        np_pts_ground = np.array(PTS_GROUND_PLANE)
+        np_pts_ground = np_pts_ground * METERS_PER_INCH
+        np_pts_ground = np.float32(np_pts_ground[:, np.newaxis, :])
+
+        np_pts_image = np.array(PTS_IMAGE_PLANE)
+        np_pts_image = np_pts_image * 1.0
+        np_pts_image = np.float32(np_pts_image[:, np.newaxis, :])
+
+        self.h, _ = cv2.findHomography(np_pts_image, np_pts_ground)
+
     def show_video(self, img):
         """
         Show incoming images.
@@ -42,8 +70,13 @@ class RaceCV():
         """
         Returns center offset given image of lane.
         """
+        def get_centroid_x(contour):
+            M = cv2.moments(contour)
+            if M["m00"] != 0:
+                return int(M["m10"] / M["m00"])
+            return None
+
         frame_height, frame_width, _ = frame.shape # (360, 640, 3)
-        # frame = cv2.resize(frame, (640, 480)) # Resizing
 
         ### Area of focus ###
         tl = (frame_width // 2 - 170 + 30, 170)
@@ -124,35 +157,35 @@ class RaceCV():
         ### Sliding window ###
         win_width = 50 # Half of width
         win_height = 40
-        y = 360
-        starting_y = y
-        lane_width_meters = 0.9
-        lx = []
-        rx = []
+        y = mask.shape[0] # Start at bottom
 
-        # window_mask = mask.copy()
+        lx, rx = [], []
+        left_bases, right_bases = [left_base], [right_base]
+
         while y > 0:
-            # Left
-            img = mask[max(0, y - win_height):y, max(0, left_base - win_width):left_base + win_width]
-            contours, _ = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            y_top = max(0, y - win_height)
+
+            # Left window
+            left_window = mask[y_top:y, max(0, left_base - win_width):left_base + win_width]
+            contours, _ = cv2.findContours(left_window, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
             for contour in contours:
-                M = cv2.moments(contour)
-                if M["m00"] != 0:
-                    cx = int(M["m10"] / M["m00"])
-                    cy = int(M["m01"] / M["m00"])
-                    lx.append(left_base - win_width + cx)
-                    left_base = left_base - win_width + cx
+                cx = get_centroid_x(contour)
+                if cx is not None:
+                    left_base = max(0, left_base - win_width) + cx
+                    lx.append(left_base)
+                    left_bases.append(left_base)
+                    break  # Use only the first valid contour
 
             # Right
-            img = mask[max(0, y - win_height):y, max(0, right_base - win_width):right_base + win_width]
-            contours, _ = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            right_window = mask[y_top:y, max(0, right_base - win_width):right_base + win_width]
+            contours, _ = cv2.findContours(right_window, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
             for contour in contours:
-                M = cv2.moments(contour)
-                if M["m00"] != 0:
-                    cx = int(M["m10"] / M["m00"])
-                    cy = int(M["m01"] / M["m00"])
-                    rx.append(right_base - win_width + cx)
-                    right_base = right_base - win_width + cx
+                cx = get_centroid_x(contour)
+                if cx is not None:
+                    right_base = max(0, right_base - win_width) + cx
+                    rx.append(right_base)
+                    right_bases.append(right_base)
+                    break
 
             # cv2.rectangle(window_mask, (left_base - win_width, y), (left_base + win_width, y - win_height), (255, 255, 255), 2)
             # cv2.rectangle(window_mask, (right_base - win_width, y), (right_base + win_width, y - win_height), (255, 255, 255), 2)
@@ -174,51 +207,28 @@ class RaceCV():
             print("No lanes detected")
             return None, None
 
-        # Fit second order polynomial
-        # left_points = [(lx[i], y + i * win_height) for i in range(min_length)]
-        # right_points = [(rx[i], y + i * win_height) for i in range(min_length)]
-        # try:
-        #     left_fit = np.polyfit([p[1] for p in left_points], [p[0] for p in left_points], 2)
-        #     self.prev_left_fit = left_fit
-        # except (np.linalg.LinAlgError, ValueError):
-        #     left_fit = self.prev_left_fit
-        # try:
-        #     right_fit = np.polyfit([p[1] for p in right_points], [p[0] for p in right_points], 2)
-        #     self.prev_right_fit = right_fit
-        # except (np.linalg.LinAlgError, ValueError):
-        #     right_fit = self.prev_right_fit
-
-        # Curvature
-        # y_eval = frame_height
-        # epsilon = 1e-6
-        # left_A = left_fit[0] if np.abs(left_fit[0]) > epsilon else epsilon
-        # right_A = right_fit[0] if np.abs(right_fit[0]) > epsilon else epsilon
-
-        # left_curvature = ((1 + (2 * left_fit[0] * y_eval + left_fit[1])**2)**1.5) / np.abs(2 * left_A)
-        # right_curvature = ((1 + (2 * right_fit[0] * y_eval + right_fit[1])**2)**1.5) / np.abs(2 * right_A)
-        # curvature = left_curvature + right_curvature / 2
-
         # Offset
-        lane_center = (left_bottom + right_bottom) / 2
-        cv2.circle(mask, (int(lane_center), frame_height), 5, 255, -1)
+        window_index = 0  # Closest to the car
+        left_base = lx[window_index]
+        right_base = rx[window_index]
+        x_center = (left_base + right_base) // 2
+        y_center = mask.shape[0] - win_height * window_index
 
-        # cv2.circle(transformed_frame, (0, frame_height), 5, (0, 0, 255), -1)
-        # cv2.circle(transformed_frame, (640, frame_height), 5, (0, 0, 255), -1)
+        # Transform to original image
+        inv_matrix = cv2.getPerspectiveTransform(pts2, pts1)
+        lane_center_bev = np.array([[[x_center, y_center]]], dtype=np.float32)
+        lane_center_img = cv2.perspectiveTransform(lane_center_bev, inv_matrix)
+        x_img, y_img = lane_center_img[0][0]
 
-        # 1.48 m per 640 pixels
+        # Project to world coordinates using calibrated homography
+        img_point = np.array([[x_img, y_img, 1]]).T  # Shape (3, 1)
+        world_point = np.dot(self.h, img_point)
+        world_point /= world_point[2, 0]  # Normalize homogeneous coordinate
 
-        car_position = frame_width // 2
-        lane_offset = (car_position - lane_center) * 1.48 / frame_width
+        x_world = world_point[0, 0]
+        y_world = world_point[1, 0]
 
-        # Steering angle
-        # steering_constant = 1
-        # steering_angle = np.arctan(lane_offset / 0.9)  # / curvature
-        # steering_angle *= steering_constant
-
-        # Steering line
-        # line_length = 100
-        # end_x = int(frame_width // 2 + line_length * np.sin(steering_angle))
-        # end_y = int(frame_height - line_length * np.cos(steering_angle))
+        cv2.circle(frame, (int(x_img), int(y_img)), 5, (0, 255, 255), -1)
 
         ### Overlay ###
         # top_left = (lx[0], starting_y)
@@ -236,12 +246,6 @@ class RaceCV():
         # overlay_original = cv2.warpPerspective(transformed_frame, inv_matrix, (640, 360))
         # result = cv2.addWeighted(frame, 1, overlay_original, 0.5, 0)
 
-        ### Steering Messages ###
-        # cv2.line(result, (frame_width //2, frame_height), (end_x, end_y), (255, 0, 0), 2)
-        # cv2.putText(result, f'Curvature: {curvature:.2f} m', (30, 30), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
-        # cv2.putText(result, f'Offset: {lane_offset:.2f} m', (30, 70), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
-        # cv2.putText(result, f'Angle: {steering_angle:.2f} m', (30, 110), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
-
         ### Visualization ###
         # cv2.imshow("Original", frame)
         # cv2.imshow("Bird's Eye View", transformed_frame)
@@ -255,4 +259,4 @@ class RaceCV():
         if cv2.waitKey(1) & 0xFF == ord('q'):
             cv2.destroyAllWindows()
 
-        return lane_offset, 0.65
+        return x_world, y_world

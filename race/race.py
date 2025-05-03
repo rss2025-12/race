@@ -49,7 +49,7 @@ class Race(Node):
 
         # steering_angle = self.steering_angle(x_target, y_target)
         # print(x_target, y_target)
-        # print(steering_angle) 
+        # print(steering_angle)
 
         # drive_msg = AckermannDriveStamped()
         # drive_msg.header.stamp = self.get_clock().now().to_msg()
