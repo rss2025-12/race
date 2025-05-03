@@ -79,10 +79,12 @@ class RaceCV():
         frame_height, frame_width, _ = frame.shape # (360, 640, 3)
 
         ### Area of focus ###
-        tl = (frame_width // 2 - 170 + 30, 170)
-        tr = (frame_width // 2 + 170, 170)
-        bl = (30, 215)
-        br = (640, 215)
+        tl = (frame_width // 2 - 105 + 20, 150)
+        tr = (frame_width // 2 + 105 - 10, 150)
+        bl = (20, 215)
+        br = (640 - 10, 215)
+
+        # Old: l: 35, r: 15
 
         # Draw area of focus
         # cv2.circle(frame, tl, 5, (0, 0, 255), -1)
@@ -114,6 +116,7 @@ class RaceCV():
         lower = np.array([lh, ls, lv])
         upper = np.array([uh, us, uv])
         mask = cv2.inRange(hsv, lower, upper)
+        original_mask = mask.copy()
 
         ### Mask processing ###
         vertical_kernel = np.ones((1, 5), np.uint8)
@@ -185,7 +188,7 @@ class RaceCV():
             return None, None
 
         # Offset
-        window_index = 7
+        window_index = 9
         available_index = min(window_index, min_length - 1)
 
         left_base = lx[available_index]
@@ -199,7 +202,7 @@ class RaceCV():
         lane_center_img = cv2.perspectiveTransform(lane_center_bev, inv_matrix)
         x_img, y_img = lane_center_img[0][0]
 
-        # Project to world coordinates using calibrated homography
+        # Project to world coordinates
         img_point = np.array([[x_img, y_img, 1]]).T  # Shape (3, 1)
         world_point = np.dot(self.h, img_point)
         world_point /= world_point[2, 0]  # Normalize homogeneous coordinate
@@ -210,28 +213,29 @@ class RaceCV():
         cv2.circle(frame, (int(x_img), int(y_img)), 5, (0, 255, 255), -1)
 
         ### Overlay ###
-        # top_left = (lx[0], starting_y)
-        # top_right = (rx[0], starting_y)
-        # bottom_left = (lx[min_length - 1], 0)
-        # bottom_right = (rx[min_length - 1], 0)
+        # top_left = (lx[min_length - 1], win_height * (9 - min_length))
+        # top_right = (rx[min_length - 1], win_height * (9 - min_length))
+        # bottom_left = (lx[0], frame_height)
+        # bottom_right = (rx[0], frame_height)
 
         # quad_points = np.array([[top_left, top_right, bottom_right, bottom_left]], dtype=np.int32)
         # quad_points = quad_points.reshape((-1, 1, 2))
         # overlay = transformed_frame.copy()
         # cv2.fillPoly(overlay, [quad_points], (0, 255, 0))
         # alpha = 0.5
-        # cv2.addWeighted(overlay, alpha, transformed_frame, 1 - alpha, 0, transformed_frame)
+        # cv2.addWeighted(transformed_frame, alpha, overlay, 1 - alpha, 0, overlay)
         # inv_matrix = cv2.getPerspectiveTransform(pts2, pts1)
-        # overlay_original = cv2.warpPerspective(transformed_frame, inv_matrix, (640, 360))
+        # overlay_original = cv2.warpPerspective(overlay, inv_matrix, (640, 360))
         # result = cv2.addWeighted(frame, 1, overlay_original, 0.5, 0)
 
         ### Visualization ###
         # cv2.imshow("Original", frame)
         # cv2.imshow("Bird's Eye View", transformed_frame)
+        # cv2.imshow("Original Mask", original_mask)
         # cv2.imshow("Lane Detection", mask)
         # cv2.imshow("Sliding Windows", window_mask)
-        # cv2.imshow("Lane Highlight", overlay)
-        # cv2.imshow("Original Lane", overlay_original)
+        # cv2.imshow("Overlay", overlay)
+        # cv2.imshow("Overlay Original", overlay_original)
         # cv2.imshow("Result", result)
 
         ### Continuous streaming ###
