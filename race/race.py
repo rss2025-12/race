@@ -32,9 +32,7 @@ class Race(Node):
         img = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
 
         # self.race_cv.show_video(img)
-        self.race_cv.record_video(img)
-        # 42 in seperation
-
+        # self.race_cv.record_video(img)
         x_target, y_target  = self.race_cv.lane_following(img)
 
         if x_target is None:
@@ -47,31 +45,30 @@ class Race(Node):
             self.drive_pub.publish(drive_msg)
             return
 
-        # steering_angle = self.steering_angle(x_target, y_target)
-        # print(x_target, y_target)
+        steering_angle = self.steering_angle(x_target, y_target)
         # print(steering_angle)
 
-        # drive_msg = AckermannDriveStamped()
-        # drive_msg.header.stamp = self.get_clock().now().to_msg()
-        # drive_msg.header.frame_id = 'base_link'
-        # drive_msg.drive.speed = self.drive_speed
-        # drive_msg.drive.steering_angle = steering_angle * 0.15
+        drive_msg = AckermannDriveStamped()
+        drive_msg.header.stamp = self.get_clock().now().to_msg()
+        drive_msg.header.frame_id = 'base_link'
+        drive_msg.drive.speed = self.drive_speed
+        drive_msg.drive.steering_angle = steering_angle
 
-        # self.drive_pub.publish(drive_msg)
+        self.drive_pub.publish(drive_msg)
 
     def steering_angle(self, x_target, y_target):
         """
         x is right
         y is forward
         """
-        dx = x_target + 0.06
+        dx = x_target
         dy = y_target
-        angle_to_wp = np.arctan2(dx, dy)
+        angle_to_wp = np.arctan2(dy, dx)
 
         angle = angle_to_wp
         alpha = np.arctan2(np.sin(angle), np.cos(angle))
         steering_angle = np.arctan2(2.0 * 0.3 * np.sin(alpha),
-                                y_target)
+                                np.sqrt(dx**2 + dy**2))
 
         return steering_angle
 
