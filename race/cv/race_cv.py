@@ -133,6 +133,34 @@ class RaceCV():
         #         continue
         #     cv2.drawContours(filtered_mask, [contour], -1, 255, -1)
         # mask = filtered_mask
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        filtered_mask = np.zeros_like(mask)
+
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            # x_rect, y_rect, w, h = cv2.boundingRect(contour)
+            # aspect_ratio = float(w) / h if h > 0 else 0
+
+            if area < 300: # Filter by size
+                continue
+
+            cv2.drawContours(filtered_mask, [contour], -1, 255, -1)
+        mask = filtered_mask
+
+        vertical_kernel = np.ones((1, 5), np.uint8)
+        horizontal_kernel = np.ones((5, 1), np.uint8)
+
+        mask = cv2.dilate(mask, vertical_kernel, iterations=3)
+        mask = cv2.erode(mask, horizontal_kernel, iterations=8)
+
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        filtered_mask = np.zeros_like(mask)
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area < 800: # Filter by size
+                continue
+            cv2.drawContours(filtered_mask, [contour], -1, 255, -1)
+        mask = filtered_mask
 
         ### Histogram ###
         hist_offset = 110
@@ -151,7 +179,6 @@ class RaceCV():
         lx, rx = [], []
         left_bases, right_bases = [left_base], [right_base]
 
-        window_mask = mask.copy()
         while y > 0:
             y_top = max(0, y - win_height)
 
@@ -177,8 +204,8 @@ class RaceCV():
                     right_bases.append(right_base)
                     break
 
-            cv2.rectangle(window_mask, (left_base - win_width, y), (left_base + win_width, y - win_height), (255, 255, 255), 2)
-            cv2.rectangle(window_mask, (right_base - win_width, y), (right_base + win_width, y - win_height), (255, 255, 255), 2)
+            # cv2.rectangle(window_mask, (left_base - win_width, y), (left_base + win_width, y - win_height), (255, 255, 255), 2)
+            # cv2.rectangle(window_mask, (right_base - win_width, y), (right_base + win_width, y - win_height), (255, 255, 255), 2)
 
             y -= win_height
 
