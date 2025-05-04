@@ -129,8 +129,10 @@ class RaceCV():
         hist_offset = 110
         histogram = np.sum(mask[mask.shape[0] // 2:, :], axis=0)
         midpoint = int(histogram.shape[0] / 2)
-        left_base = np.argmax(histogram[:midpoint - hist_offset])
-        right_base = np.argmax(histogram[midpoint + hist_offset:]) + midpoint + hist_offset
+        left_bottom = np.argmax(histogram[:midpoint - hist_offset])
+        right_bottom = np.argmax(histogram[midpoint + hist_offset:]) + midpoint + hist_offset
+        left_base = left_bottom
+        right_base = right_bottom
 
         ### Sliding window ###
         win_width = 50 # Half of width
@@ -140,7 +142,6 @@ class RaceCV():
         lx, rx = [], []
         left_bases, right_bases = [left_base], [right_base]
 
-        window_mask = mask.copy()
         while y > 0:
             y_top = max(0, y - win_height)
 
@@ -166,8 +167,8 @@ class RaceCV():
                     right_bases.append(right_base)
                     break
 
-            cv2.rectangle(window_mask, (left_base - win_width, y), (left_base + win_width, y - win_height), (255, 255, 255), 2)
-            cv2.rectangle(window_mask, (right_base - win_width, y), (right_base + win_width, y - win_height), (255, 255, 255), 2)
+            # cv2.rectangle(window_mask, (left_base - win_width, y), (left_base + win_width, y - win_height), (255, 255, 255), 2)
+            # cv2.rectangle(window_mask, (right_base - win_width, y), (right_base + win_width, y - win_height), (255, 255, 255), 2)
 
             y -= win_height
 
