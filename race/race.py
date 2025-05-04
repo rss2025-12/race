@@ -13,7 +13,7 @@ class Race(Node):
     def __init__(self):
         super().__init__("race")
         self.declare_parameter('drive_topic', "/vesc/high_level/input/nav_0")
-        self.declare_parameter('drive_speed', 4.0)
+        self.declare_parameter('drive_speed', 2.0)
 
         self.drive_topic = self.get_parameter('drive_topic').get_parameter_value().string_value
         self.drive_speed = self.get_parameter('drive_speed').get_parameter_value().double_value
@@ -33,7 +33,7 @@ class Race(Node):
 
         self.write_data = False
         if self.write_data is True:
-            output_path = os.path.join(os.path.dirname(__file__), '../data/test.csv') # File name
+            output_path = os.path.join(os.path.dirname(__file__), '../data/crosstrack_two.csv') # File name
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             self.csv_file = open(output_path, mode='w', newline='')
             self.csv_writer = csv.writer(self.csv_file)
@@ -83,7 +83,7 @@ class Race(Node):
         angle_to_wp = np.arctan2(dy, dx)
 
         current_time = self.get_clock().now().nanoseconds / 1e9
-        angle_derivative = (angle_to_wp - self.prev_wp_angle) / (current_time-self.prev_time)
+        angle_derivative = (angle_to_wp - self.prev_wp_angle) / (current_time - self.prev_time)
 
         self.prev_time = current_time
         self.prev_wp_angle = angle_to_wp

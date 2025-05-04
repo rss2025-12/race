@@ -87,10 +87,10 @@ class RaceCV():
         # Old: l: 35, r: 15
 
         # Draw area of focus
-        # cv2.circle(frame, tl, 5, (0, 0, 255), -1)
-        # cv2.circle(frame, tr, 5, (0, 0, 255), -1)
-        # cv2.circle(frame, bl, 5, (0, 0, 255), -1)
-        # cv2.circle(frame, br, 5, (0, 0, 255), -1)
+        cv2.circle(frame, tl, 5, (0, 0, 255), -1)
+        cv2.circle(frame, tr, 5, (0, 0, 255), -1)
+        cv2.circle(frame, bl, 5, (0, 0, 255), -1)
+        cv2.circle(frame, br, 5, (0, 0, 255), -1)
 
         pts1 = np.float32([tl, tr, bl, br])
         pts2 = np.float32([
