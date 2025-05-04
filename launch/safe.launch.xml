@@ -1,0 +1,4 @@
+<launch>
+  <node pkg="race" name="race" exec="race" output="screen"/>
+  <node pkg="safety_controller" name="safety_controller" exec="safety" output="screen"/>
+</launch>
