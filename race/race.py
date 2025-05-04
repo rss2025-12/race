@@ -75,8 +75,8 @@ class Race(Node):
 
     def steering_angle(self, x_target, y_target):
         """
-        x is right
-        y is forward
+        x is forward
+        y is right
         """
         dx = x_target
         dy = y_target
@@ -88,10 +88,11 @@ class Race(Node):
         self.prev_time = current_time
         self.prev_wp_angle = angle_to_wp
 
+        wheelbase = 0.3
+        lookahead = 2.7
         angle = 1 * angle_to_wp + 0.1 * angle_derivative
         alpha = np.arctan2(np.sin(angle), np.cos(angle))
-        steering_angle = np.arctan2(2.0 * 0.3 * np.sin(alpha),
-                                2.7)
+        steering_angle = np.arctan2(2.0 * wheelbase * np.sin(alpha), lookahead)
 
         return steering_angle
 
